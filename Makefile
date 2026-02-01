@@ -71,7 +71,10 @@ run:
 	docker run -it --rm python-docker-app-web-server	
 	
 
+# تشغيل برنامج البايثون بوضع تفاعلي (للـ Login والـ Register)
 app:
-	docker exec -it my-python-app python app.py
+	docker-compose run --rm web-server python app.py
+
+	
 
 .DEFAULT_GOAL := help
