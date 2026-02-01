@@ -1,97 +1,62 @@
-# استيراد المكتبات (مثل #include في C++)
 import mysql.connector
+import hashlib
 import time
 
-# --- تعريف دالة الاتصال ---
-# في C++: MySQL* connect_db()
-def connect_db():
-    return mysql.connector.connect(
-        host="db",           # اسم السيرفر (اسم الحاوية في دوكر)
-        user="root",         # المستخدم
-        password="rootpassword", 
-        database="my_first_db"
-    )
+def connect_to_db():
+    # الكود تبعك اللي بعته (ممتاز جداً)
+    for i in range(10): 
+        try:
+            conn = mysql.connector.connect(
+                host="db",
+                user="root",
+                password="rootpassword",
+                database="my_first_db"
+            )
+            return conn
+        except:
+            print(f"⏳ Waiting for database... (Attempt {i+1}/10)")
+            time.sleep(5) # قللنا الوقت شوي عشان ما تمل
+    return None
 
-# --- دالة الحذف (الخيار الجديد) ---
-# نمرر الـ cursor والـ connection كبارامترات
-def delete_user(cursor, conn):
-    # input تأخذ نصاً من المستخدم (مثل cin)
-    user_id = input("Enter the ID of the user you want to delete: ")
-    
-    # أمر الحذف SQL
-    # %s تحمي من SQL Injection (ثغرات أمنية)
-    sql_query = "DELETE FROM users WHERE id = %s"
-    
-    # تنفيذ الأمر: نضع الـ ID داخل tuple (بين قوسين)
-    cursor.execute(sql_query, (user_id,))
-    
-    # في القواعد، أي تعديل (Insert/Delete/Update) يحتاج تثبيت (Commit)
-    conn.commit()
-    print(f"🗑️ User with ID {user_id} deleted!")
+def setup_database():#هاي "أول مرة" بيشتغل فيها البرنامج، لازم يتأكد إنّ "الرفوف" جاهزة.
+    conn = connect_to_db()
+    if conn:
+        cursor = conn.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(50) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL)")#CREATE TABLE IF NOT EXISTS: هاي جملة SQL ذكية، بتقول للقاعدة: "إذا ما عندك جدول اسمه users اعملي واحد هسا، وإذا فيه خلص لا تعملي شي".
+        conn.close()
+        print("✅ Database Table Ready!")
 
-# --- الدالة الرئيسية (مثل int main() ) ---
-def main():
-    # انتظار ثانيتين (للتأكد أن حاوية MySQL اشتغلت تماماً)
-    time.sleep(2)
-    
-    # إنشاء كائن الاتصال والمؤشر
-    conn = connect_db() #conn: هو الجسر (Connection Object).
-    cursor = conn.cursor()#هو العامل الذي سيرسل الأوامر (Cursor Object).
-
-    # إنشاء الجدول (إذا لم يكن موجوداً)
-    # AUTO_INCREMENT تعني أن الـ ID يزداد تلقائياً (1, 2, 3...)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INT AUTO_INCREMENT PRIMARY KEY, 
-            name VARCHAR(255)
-        )
-    """)
-
-    # الحلقة الرئيسية (مثل while(true) )
-    while True:
-        print("\n--- Python & Docker Database Manager ---")
-        print("1. Add New Name")
-        print("2. Show All Names")
-        print("3. Delete User (By ID)")
-        print("4. Exit")
-        
-        # قراءة خيار المستخدم
-        choice = input("Select an option (1-4): ")
-
-        if choice == '1':
-            name = input("Enter name to save: ")
-            # إضافة بيانات (INSERT)
-            cursor.execute("INSERT INTO users (name) VALUES (%s)", (name,))
-            conn.commit()
-            print(f"✅ {name} added!")
-            
-        elif choice == '2':
-            # قراءة البيانات (SELECT)
-            cursor.execute("SELECT * FROM users")
-            # fetchall ترجع قائمة (List) تحتوي على كل الصفوف
-            results = cursor.fetchall()
-            
-            print("\n--- Users List ---")
-            # حلقة for تمشي على النتائج (مثل for-each loop)
-            for row in results:
-                # row[0] هو الـ ID، و row[1] هو الاسم
-                print(f"ID: {row[0]} | Name: {row[1]}")
-            
-        elif choice == '3':
-            # استدعاء دالة الحذف التي عرفناها في الأعلى
-            delete_user(cursor, conn)
-            
-        elif choice == '4':
-            print("Goodbye!")
-            break # الخروج من الـ while loop
-            
-        else:
-            print("Invalid choice! Try again.")
-
-    # إغلاق الاتصال (جيد لإدارة الذاكرة)
-    conn.close()
-
-# السطر التالي يخبر بايثون أن يبدأ من دالة main
-# هو العرف البرمجي لبداية أي تطبيق بايثون
+# --- هاد الجزء الناقص عندك اللي بيشغل البرنامج ---
 if __name__ == "__main__":
-    main()
+    setup_database()
+    
+    print("\n--- User Registration System ---")
+    u = input("Enter Username: ")
+    p = input("Enter Password: ")
+    
+    conn = connect_to_db()
+    if conn:
+        cursor = conn.cursor()#الـ Cursor هو بمثابة "المندوب" أو "المؤشر" اللي بياخد أوامر SQL من البايثون وبيوديها لقاعدة البيانات. بدونه، البايثون ما بيعرف يحكي مع الجداول
+        password_hash = hashlib.sha256(p.encode()).hexdigest()
+        try:
+            cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s)", (u, password_hash))#INSERT INTO: أمر SQL لإضافة سطر جديد.
+            conn.commit()#4. تثبيت العملية (commit)
+            #في قواعد البيانات، الإدخال ما بصير "نهائي" بمجرد الإرسال. لازم تبعت أمر Commit (تأكيد)، كأنك بتضغط "Save" للملف. لو ما عملت هيك، البيانات رح تضيع بمجرد ما يسكر البرنامج.
+            print(f"🎉 Success! User '{u}' registered.")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+        finally:
+            conn.close()
+            
+            #سواء العملية نجحت أو فشلت، لازم نسكر "خط التليفون" مع القاعدة. هاد بيمنع استهلاك موارد السيرفر على الفاضي.
+
+           
+            #ملخص العملية:
+#           #بنتصل بقاعدة البيانات.
+           #بنعمل "مندوب" (Cursor) للتواصل مع القاعدة.
+           #بنشفر الباسورد.
+           #بنحاول نضيف المستخدم الجديد.
+           #بنطبع رسالة نجاح أو فشل.
+           #بنبعث الاسم والهاش للمندوب.
+           #بناكد الحفظ (Commit).
+           # بنسكر الاتصال

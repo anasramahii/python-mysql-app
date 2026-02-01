@@ -28,6 +28,7 @@ build:
 
 rebuild:
 	docker-compose build --no-cache
+	
 
 stop:
 	docker-compose stop
@@ -68,6 +69,7 @@ prune-volumes:
 
 run:
 	docker run -it --rm python-docker-app-web-server	
+	
 
 app:
 	docker exec -it my-python-app python app.py
